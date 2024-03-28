@@ -1,5 +1,5 @@
 # prometheus-remote-write
-Push back mechanism for remote write in golang
+Push based mechanism for remote write in golang
 
 # To run the example
 
