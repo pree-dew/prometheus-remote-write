@@ -7,28 +7,29 @@ import (
 	"net/http"
 	"time"
 
-	prw "github.com/pree-dew/prometheus-remote-write"
 	"github.com/prometheus/client_golang/prometheus"
+
+	prw "github.com/pree-dew/prometheus-remote-write"
 )
 
-type demoAPI struct {
+type sampleAPI struct {
 	requestDurations *prometheus.HistogramVec
 }
 
-func newDemoAPI(reg prometheus.Registerer) *demoAPI {
+func newSampleAPI(reg prometheus.Registerer) *sampleAPI {
 	requestDurations := prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "demo_api_http_request_duration_seconds",
-		Help:    "A histogram of the demo API request durations in seconds.",
+		Name:    "sample_api_http_request_duration_seconds",
+		Help:    "A histogram of the sample API request durations in seconds.",
 		Buckets: prometheus.LinearBuckets(.05, .025, 10),
 	}, []string{"handler"})
 	reg.MustRegister(requestDurations)
 
-	return &demoAPI{
+	return &sampleAPI{
 		requestDurations: requestDurations,
 	}
 }
 
-func (a demoAPI) register(mux *http.ServeMux) {
+func (a sampleAPI) register(mux *http.ServeMux) {
 	instr := func(handler string, fn http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			timer := prometheus.NewTimer(a.requestDurations.WithLabelValues(handler))
@@ -41,7 +42,7 @@ func (a demoAPI) register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/bar", instr("bar", a.bar))
 }
 
-func (a demoAPI) foo(w http.ResponseWriter, r *http.Request) {
+func (a sampleAPI) foo(w http.ResponseWriter, r *http.Request) {
 	log.Println("Handling foo...")
 
 	// Simulate a random duration that the "foo" operation needs to be completed.
@@ -50,7 +51,7 @@ func (a demoAPI) foo(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Handled foo"))
 }
 
-func (a demoAPI) bar(w http.ResponseWriter, r *http.Request) {
+func (a sampleAPI) bar(w http.ResponseWriter, r *http.Request) {
 	log.Println("Handling bar...")
 	// Simulate a random duration that the "bar" operation needs to be completed.
 	time.Sleep(50*time.Millisecond + time.Duration(rand.Float64()*200)*time.Millisecond)
@@ -62,19 +63,19 @@ func periodicBackgroundTask(reg prometheus.Registerer) {
 	// You may or may not need / want these counter metrics in addition to the timestamp
 	// metrics here, depending on your requirements.
 	totalCount := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "demo_background_task_runs_total",
+		Name: "sample_background_task_runs_total",
 		Help: "The total number of background task runs.",
 	})
 	failureCount := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "demo_background_task_failures_total",
+		Name: "sample_background_task_failures_total",
 		Help: "The total number of background task failures.",
 	})
 	lastRun := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "demo_background_task_last_run_timestamp_seconds",
+		Name: "sample_background_task_last_run_timestamp_seconds",
 		Help: "The Unix timestamp in seconds of the last background task run, successful or not.",
 	})
 	lastSuccess := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "demo_background_task_last_success_timestamp_seconds",
+		Name: "sample_background_task_last_success_timestamp_seconds",
 		Help: "The Unix timestamp in seconds of the last successful background task run.",
 	})
 	reg.MustRegister(totalCount)
@@ -115,7 +116,7 @@ func main() {
 
 	go periodicBackgroundTask(prometheus.DefaultRegisterer)
 
-	api := newDemoAPI(prometheus.DefaultRegisterer)
+	api := newSampleAPI(prometheus.DefaultRegisterer)
 	api.register(http.DefaultServeMux)
 
 	go prw.RemoteWrite(*remoteWriteURL, *frequency)
